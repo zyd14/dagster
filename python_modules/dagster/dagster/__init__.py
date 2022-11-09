@@ -419,8 +419,8 @@ from dagster._core.execution.context.output import (
     build_output_context as build_output_context,
 )
 from dagster._core.execution.context.system import (
+    StepExecutionContext as StepExecutionContext,
     TypeCheckContext as TypeCheckContext,
-    StepExecutionContext as StepExecutionContext
 )
 from dagster._core.execution.execute_in_process_result import (
     ExecuteInProcessResult as ExecuteInProcessResult,
