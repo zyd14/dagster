@@ -420,6 +420,7 @@ from dagster._core.execution.context.output import (
 )
 from dagster._core.execution.context.system import (
     TypeCheckContext as TypeCheckContext,
+    StepExecutionContext as StepExecutionContext
 )
 from dagster._core.execution.execute_in_process_result import (
     ExecuteInProcessResult as ExecuteInProcessResult,
