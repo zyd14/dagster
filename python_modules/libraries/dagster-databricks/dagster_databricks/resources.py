@@ -14,16 +14,6 @@ from pydantic import Field
 from .databricks import DatabricksClient
 
 
-class ClientType(Enum):
-    """OAuth client type.
-
-    See https://docs.databricks.com/dev-tools/api/latest/authentication.html#oauth-2-0.
-    """
-
-    PUBLIC = "PUBLIC"
-    CONFIDENTIAL = "CONFIDENTIAL"
-
-
 class OauthCredentials(Config):
     """OAuth credentials for Databricks.
 
