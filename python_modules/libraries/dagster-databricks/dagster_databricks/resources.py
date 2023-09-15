@@ -69,10 +69,6 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
         if all([token, oauth_credentials, azure_credentials]):
             raise ValueError("Must provide one of token or oauth_credentials or azure_oauth_credentials, not all")
 
-        if not token and not oauth_credentials:
-            raise ValueError("Must provide either token or oauth_credentials")
-        if token and oauth_credentials:
-            raise ValueError("Must provide either token or oauth_credentials, not both")
         return values
 
     @classmethod
