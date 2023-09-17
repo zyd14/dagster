@@ -49,7 +49,13 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
             " https://docs.databricks.com/en/dev-tools/auth.html#oauth-2-0"
         ),
     )
-    azure_credentials: Optional[AzureOauthCredentials] = Field(default=None, description="Azure service principal. See See See https://docs.databricks.com/dev-tools/api/latest/authentication.html#oauth-2-0")
+    azure_credentials: Optional[AzureOauthCredentials] = Field(
+        default=None,
+        description=(
+            "Azure service principal credentials. See"
+            " https://learn.microsoft.com/en-us/azure/databricks/dev-tools/auth#requirements-for-oauth-u2m-authentication-setup"
+        ),
+    )
     workspace_id: Optional[str] = Field(
         default=None,
         description=(
@@ -60,15 +66,16 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
     )
 
     @compat_model_validator(mode="before")
-    def has_token_or_oauth_credentials(cls, values):
+    def has_token_or_oauth_credentials(cls, values: dict):
         token = values.get("token")
         oauth_credentials = values.get("oauth_credentials")
         azure_credentials = values.get("azure_oauth_credentials")
-        if not any([token, oauth_credentials, azure_credentials]):
-            raise ValueError("Must provide either token or oauth_credentials or azure_oauth_credentials")
-        if all([token, oauth_credentials, azure_credentials]):
-            raise ValueError("Must provide one of token or oauth_credentials or azure_oauth_credentials, not all")
-
+        present = [True for v in [token, oauth_credentials, azure_credentials] if v is not None]
+        if len(present) != 1:
+            raise ValueError(
+                "Must provide one of token or oauth_credentials or azure_oauth_credentials, not"
+                " multiple"
+            )
         return values
 
     @classmethod
