@@ -407,12 +407,14 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
             **cpu_and_memory_overrides,
             **task_overrides,
         }
+        run_task_kwargs_from_run = self._get_run_task_kwargs_from_run(run)
+
         run_task_kwargs["tags"] = [
             *run_task_kwargs.get("tags", []),
             *self.build_ecs_tags_for_run_task(run, container_context),
+            *run_task_kwargs_from_run.pop("tags", []),
         ]
 
-        run_task_kwargs_from_run = self._get_run_task_kwargs_from_run(run)
         run_task_kwargs.update(run_task_kwargs_from_run)
 
         # launchType and capacityProviderStrategy are incompatible - prefer the latter if it is set
