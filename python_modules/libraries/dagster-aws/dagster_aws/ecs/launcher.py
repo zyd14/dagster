@@ -348,7 +348,7 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         }
         self._instance.add_run_tags(run_id, tags)
 
-    def build_ecs_tags_for_run_task(self, run, container_context: EcsContainerContext):
+    def build_ecs_tags_for_run_task(self, run: DagsterRun, container_context: EcsContainerContext):
         if any(tag["key"] == "dagster/run_id" for tag in container_context.run_ecs_tags):
             raise Exception("Cannot override system ECS tag: dagster/run_id")
 
@@ -359,7 +359,12 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
                 to_add.append({"key": "dagster/user", "value": run.tags["user"]})
             if run.tags.get("dagster/partition"):
                 to_add.append({"key": "dagster/partition", "value": run.tags["dagster/partition"]})
-
+            if run.tags.get("dagster/partition_set"):
+                to_add.append({"key": "dagster/partition_set", "value": run.tags["dagster/partition_set"]})
+            if run.tags.get("dagster/image"):
+                to_add.append({"key": "dagster/image", "value": run.tags["dagster/image"]})
+            if run.tags.get("dagster/schedule_name"):
+                to_add.append({"key": "dagster/schedule_name", "value": run.tags["dagster/schedule_name"]})
         return [
             {"key": "dagster/run_id", "value": run.run_id},
             *container_context.run_ecs_tags,
