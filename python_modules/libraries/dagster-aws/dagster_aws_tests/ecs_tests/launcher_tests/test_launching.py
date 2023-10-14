@@ -928,6 +928,46 @@ def test_launch_cannot_use_system_tags(instance_cm, workspace, job, external_job
         with pytest.raises(Exception, match="Cannot override system ECS tag: dagster/run_id"):
             instance.launch_run(run.run_id, workspace)
 
+def test_with_add_dagster_metadata_tags_will_tag_ecs_tasks(ecs, instance_cm, external_job, job, workspace):
+    with instance_cm(
+            {
+                "run_ecs_tags": [
+                    {"key": "HAS_VALUE", "value": "SEE"},
+                    {"key": "DOES_NOT_HAVE_VALUE"},
+                ],
+                "add_dagster_metadata_tags": True,
+            }
+    ) as instance:
+        existing_tasks = ecs.list_tasks()["taskArns"]
+
+        run = instance.create_run_for_job(
+            job,
+            external_job_origin=external_job.get_external_origin(),
+            job_code_origin=external_job.get_python_origin(),
+            tags={"user": "some-user",
+                  "dagster/partition": "1",
+                  "dagster/partition_set": "some-set",
+                  "dagster/image": "some-image",
+                  "dagster/schedule_name": "some-schedule"}
+        )
+        instance.launch_run(run.run_id, workspace)
+
+        tasks = ecs.list_tasks()["taskArns"]
+        task_arn = next(iter(set(tasks).difference(existing_tasks)))
+        task = ecs.describe_tasks(tasks=[task_arn])["tasks"][0]
+
+        assert any(tag == {"key": "HAS_VALUE", "value": "SEE"} for tag in task["tags"])
+        assert any(tag == {"key": "DOES_NOT_HAVE_VALUE"} for tag in task["tags"])
+        assert any(tag == {"key": "dagster/job_name", "value": job.name} for tag in task["tags"])
+        assert any(tag.get("key") == "dagster/run_id" for tag in task["tags"])
+        assert any(tag == {"key": "user", "value": "some-user"} for tag in task["tags"])
+        assert any(tag == {"key": "dagster/partition", "value": "1"} for tag in task["tags"])
+        assert any(tag == {"key": "dagster/partition_set", "value": "some-set"} for tag in task["tags"])
+        assert any(tag == {"key": "dagster/image", "value": "some-image"} for tag in task["tags"])
+        assert any(tag == {"key": "dagster/schedule_name", "value": "some-schedule"} for tag in task["tags"])
+
+
+
 
 def test_launch_run_with_container_context(
     ecs,
