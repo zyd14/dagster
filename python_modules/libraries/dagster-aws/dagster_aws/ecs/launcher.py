@@ -79,6 +79,7 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         run_task_kwargs: Optional[Mapping[str, Any]] = None,
         run_resources: Optional[Dict[str, Any]] = None,
         run_ecs_tags: Optional[List[Dict[str, Optional[str]]]] = None,
+        add_dagster_metadata_tags: bool = False,
     ):
         self._inst_data = inst_data
         self.ecs = boto3.client("ecs")
@@ -169,6 +170,9 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         self.run_resources = check.opt_mapping_param(run_resources, "run_resources")
 
         self.run_ecs_tags = check.opt_sequence_param(run_ecs_tags, "run_ecs_tags")
+        self.add_dagster_metadata_tags = check.bool_param(
+            add_dagster_metadata_tags, "add_dagster_metadata_tags"
+        )
 
         self._current_task_metadata = None
         self._current_task = None
@@ -318,6 +322,15 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
                     " always be set by the run launcher."
                 ),
             ),
+            "add_dagster_metadata_tags": Field(
+                bool,
+                is_required=False,
+                default_value=False,
+                description=(
+                    "Whether to apply tags to the launched task describing metadata about the run,"
+                    " such as job name, submitting user, and partition"
+                ),
+            ),
             **SHARED_ECS_SCHEMA,
         }
 
@@ -339,7 +352,19 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         if any(tag["key"] == "dagster/run_id" for tag in container_context.run_ecs_tags):
             raise Exception("Cannot override system ECS tag: dagster/run_id")
 
-        return [{"key": "dagster/run_id", "value": run.run_id}, *container_context.run_ecs_tags]
+        to_add = []
+        if self.add_dagster_metadata_tags:
+            to_add.append({"key": "dagster/job_name", "value": run.job_name})
+            if run.tags.get("user"):
+                to_add.append({"key": "dagster/user", "value": run.tags["user"]})
+            if run.tags.get("dagster/partition"):
+                to_add.append({"key": "dagster/partition", "value": run.tags["dagster/partition"]})
+
+        return [
+            {"key": "dagster/run_id", "value": run.run_id},
+            *container_context.run_ecs_tags,
+            *to_add,
+        ]
 
     def _get_run_tags(self, run_id):
         run = self._instance.get_run_by_id(run_id)
