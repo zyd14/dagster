@@ -356,7 +356,7 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         if self.add_dagster_metadata_tags:
             to_add.append({"key": "dagster/job_name", "value": run.job_name})
             if run.tags.get("user"):
-                to_add.append({"key": "dagster/user", "value": run.tags["user"]})
+                to_add.append({"key": "user", "value": run.tags["user"]})
             if run.tags.get("dagster/partition"):
                 to_add.append({"key": "dagster/partition", "value": run.tags["dagster/partition"]})
             if run.tags.get("dagster/partition_set"):
