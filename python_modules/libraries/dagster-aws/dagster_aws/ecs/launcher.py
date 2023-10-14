@@ -360,11 +360,15 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
             if run.tags.get("dagster/partition"):
                 to_add.append({"key": "dagster/partition", "value": run.tags["dagster/partition"]})
             if run.tags.get("dagster/partition_set"):
-                to_add.append({"key": "dagster/partition_set", "value": run.tags["dagster/partition_set"]})
+                to_add.append(
+                    {"key": "dagster/partition_set", "value": run.tags["dagster/partition_set"]}
+                )
             if run.tags.get("dagster/image"):
                 to_add.append({"key": "dagster/image", "value": run.tags["dagster/image"]})
             if run.tags.get("dagster/schedule_name"):
-                to_add.append({"key": "dagster/schedule_name", "value": run.tags["dagster/schedule_name"]})
+                to_add.append(
+                    {"key": "dagster/schedule_name", "value": run.tags["dagster/schedule_name"]}
+                )
         return [
             {"key": "dagster/run_id", "value": run.run_id},
             *container_context.run_ecs_tags,
@@ -532,7 +536,7 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
 
         return overrides
 
-    def _get_run_task_kwargs_from_run(self, run: DagsterRun) -> Mapping[str, Any]:
+    def _get_run_task_kwargs_from_run(self, run: DagsterRun) -> Dict[str, Any]:
         run_task_kwargs = run.tags.get("ecs/run_task_kwargs")
         if run_task_kwargs:
             return json.loads(run_task_kwargs)
@@ -578,10 +582,12 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
     def _get_run_task_definition_family(self, run: DagsterRun) -> str:
         return get_task_definition_family("run", check.not_none(run.external_job_origin))
 
-    def _get_container_name(self, container_context) -> str:
+    def _get_container_name(self, container_context: EcsContainerContext) -> str:
         return container_context.container_name or self.container_name
 
-    def _run_task_kwargs(self, run, image, container_context) -> Dict[str, Any]:
+    def _run_task_kwargs(
+        self, run: DagsterRun, image: str, container_context: EcsContainerContext
+    ) -> Dict[str, Any]:
         """Return a dictionary of args to launch the ECS task, registering a new task
         definition if needed.
         """
@@ -745,7 +751,7 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
     def include_cluster_info_in_failure_messages(self):
         return True
 
-    def _is_transient_startup_failure(self, run, task):
+    def _is_transient_startup_failure(self, run: DagsterRun, task: Dict[str, Any]) -> bool:
         if not task.get("stoppedReason"):
             return False
         return (
