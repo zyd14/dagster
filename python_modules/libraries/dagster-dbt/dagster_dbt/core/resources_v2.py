@@ -6,7 +6,7 @@ import subprocess
 import sys
 import uuid
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Any,
@@ -51,6 +51,7 @@ from ..utils import ASSET_RESOURCE_TYPES, get_dbt_resource_props_by_dbt_unique_i
 logger = get_dagster_logger()
 
 
+DBT_EXECUTABLE = "dbt"
 DBT_PROJECT_YML_NAME = "dbt_project.yml"
 DBT_PROFILES_YML_NAME = "profiles.yml"
 PARTIAL_PARSE_FILE_NAME = "partial_parse.msgpack"
@@ -203,6 +204,7 @@ class DbtCliInvocation:
     project_dir: Path
     target_path: Path
     raise_on_error: bool
+    _error_messages: List[str] = field(init=False, default_factory=list)
 
     @classmethod
     def run(
@@ -349,6 +351,11 @@ class DbtCliInvocation:
                 try:
                     event = DbtCliEventMessage.from_log(log=log)
 
+                    # Parse the error message from the event, if it exists.
+                    is_error_message = event.raw_event["info"]["level"] == "error"
+                    if is_error_message:
+                        self._error_messages.append(str(event))
+
                     # Re-emit the logs from dbt CLI process into stdout.
                     sys.stdout.write(str(event) + "\n")
                     sys.stdout.flush()
@@ -398,17 +405,33 @@ class DbtCliInvocation:
 
         return orjson.loads(artifact_path.read_bytes())
 
+    def _format_error_messages(self) -> str:
+        """Format the error messages from the dbt CLI process."""
+        if not self._error_messages:
+            return ""
+
+        error_description = "\n".join(self._error_messages)
+
+        return f"\n\nErrors parsed from dbt logs:\n{error_description}"
+
     def _raise_on_error(self) -> None:
         """Ensure that the dbt CLI process has completed. If the process has not successfully
         completed, then optionally raise an error.
         """
         if not self.is_successful() and self.raise_on_error:
+            log_path = self.target_path.joinpath("dbt.log")
+            extra_description = ""
+
+            if log_path.exists():
+                extra_description = f", or view the dbt debug log: {log_path}"
+
             raise DagsterDbtCliRuntimeError(
                 description=(
                     f"The dbt CLI process failed with exit code {self.process.returncode}. Check"
-                    " the Dagster compute logs for the full information about the error, or view"
-                    f" the dbt debug log file: {self.target_path.joinpath('dbt.log')}."
-                )
+                    " the stdout in the Dagster compute logs for the full information about the"
+                    f" error{extra_description}."
+                    f"{self._format_error_messages()}"
+                ),
             )
 
 
@@ -432,6 +455,7 @@ class DbtCliResource(ConfigurableResource):
         target (Optional[str]): The target from your dbt `profiles.yml` to use for execution. See
             https://docs.getdbt.com/docs/core/connect-data-platform/connection-profiles for more
             information.
+        dbt_executable (str]): The path to the dbt executable. By default, this is `dbt`.
 
     Examples:
         Creating a dbt resource with only a reference to ``project_dir``:
@@ -476,6 +500,17 @@ class DbtCliResource(ConfigurableResource):
                 project_dir="/path/to/dbt/project",
                 global_config_flags=["--no-use-color"],
             )
+
+        Creating a dbt resource with custom dbt executable path:
+
+        .. code-block:: python
+
+            from dagster_dbt import DbtCliResource
+
+            dbt = DbtCliResource(
+                project_dir="/path/to/dbt/project",
+                dbt_executable="/path/to/dbt/executable",
+            )
     """
 
     project_dir: str = Field(
@@ -518,6 +553,10 @@ class DbtCliResource(ConfigurableResource):
             " information."
         ),
     )
+    dbt_executable: str = Field(
+        default=DBT_EXECUTABLE,
+        description="The path to the dbt executable.",
+    )
 
     @classmethod
     def _validate_absolute_path_exists(cls, path: Union[str, Path]) -> Path:
@@ -534,7 +573,7 @@ class DbtCliResource(ConfigurableResource):
         if not path.joinpath(file_name).exists():
             raise ValueError(error_message)
 
-    @validator("project_dir", "profiles_dir", pre=True)
+    @validator("project_dir", "profiles_dir", "dbt_executable", pre=True)
     def convert_path_to_str(cls, v: Any) -> Any:
         """Validate that the path is converted to a string."""
         if isinstance(v, Path):
@@ -578,6 +617,17 @@ class DbtCliResource(ConfigurableResource):
         )
 
         return os.fspath(resolved_project_dir)
+
+    @validator("dbt_executable")
+    def validate_dbt_executable(cls, dbt_executable: str) -> str:
+        resolved_dbt_executable = shutil.which(dbt_executable)
+        if not resolved_dbt_executable:
+            raise ValueError(
+                f"The dbt executable '{dbt_executable}' does not exist. Please specify a valid"
+                " path to a dbt executable."
+            )
+
+        return dbt_executable
 
     @root_validator(pre=True)
     def validate_dbt_version(cls, values: Dict[str, Any]) -> Dict[str, Any]:
@@ -807,7 +857,13 @@ class DbtCliResource(ConfigurableResource):
         if self.target:
             profile_args += ["--target", self.target]
 
-        args = ["dbt"] + self.global_config_flags + args + profile_args + selection_args
+        args = [
+            self.dbt_executable,
+            *self.global_config_flags,
+            *args,
+            *profile_args,
+            *selection_args,
+        ]
         project_dir = Path(self.project_dir)
 
         if not target_path.is_absolute():

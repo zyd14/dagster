@@ -1520,6 +1520,8 @@ export type InstigationStateTickArgs = {
 };
 
 export type InstigationStateTicksArgs = {
+  afterTimestamp?: InputMaybe<Scalars['Float']>;
+  beforeTimestamp?: InputMaybe<Scalars['Float']>;
   cursor?: InputMaybe<Scalars['String']>;
   dayOffset?: InputMaybe<Scalars['Int']>;
   dayRange?: InputMaybe<Scalars['Int']>;
@@ -2360,6 +2362,7 @@ export type PartitionBackfill = {
   reexecutionSteps: Maybe<Array<Scalars['String']>>;
   runs: Array<Run>;
   status: BulkActionStatus;
+  tags: Array<PipelineTag>;
   timestamp: Scalars['Float'];
   unfinishedRuns: Array<Run>;
   user: Maybe<Scalars['String']>;
@@ -2953,6 +2956,8 @@ export type QueryAutoMaterializeEvaluationsForEvaluationIdArgs = {
 };
 
 export type QueryAutoMaterializeTicksArgs = {
+  afterTimestamp?: InputMaybe<Scalars['Float']>;
+  beforeTimestamp?: InputMaybe<Scalars['Float']>;
   cursor?: InputMaybe<Scalars['String']>;
   dayOffset?: InputMaybe<Scalars['Int']>;
   dayRange?: InputMaybe<Scalars['Int']>;
@@ -8885,6 +8890,7 @@ export const buildPartitionBackfill = (
       overrides && overrides.hasOwnProperty('status')
         ? overrides.status!
         : BulkActionStatus.CANCELED,
+    tags: overrides && overrides.hasOwnProperty('tags') ? overrides.tags! : [],
     timestamp: overrides && overrides.hasOwnProperty('timestamp') ? overrides.timestamp! : 8.28,
     unfinishedRuns:
       overrides && overrides.hasOwnProperty('unfinishedRuns') ? overrides.unfinishedRuns! : [],

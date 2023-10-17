@@ -3,7 +3,7 @@ import json
 import os
 import shutil
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import pytest
 from dagster import (
@@ -37,6 +37,10 @@ pytest.importorskip("dbt.version", minversion="1.4")
 manifest_path = Path(TEST_PROJECT_DIR).joinpath("manifest.json")
 manifest = json.loads(manifest_path.read_bytes())
 
+test_exception_messages_dbt_project_dir = (
+    Path(__file__).joinpath("..", "..", "dbt_projects", "test_dagster_exceptions").resolve()
+)
+
 
 @pytest.mark.parametrize("global_config_flags", [[], ["--quiet"]])
 @pytest.mark.parametrize("command", ["run", "parse"])
@@ -48,6 +52,21 @@ def test_dbt_cli(global_config_flags: List[str], command: str) -> None:
     assert dbt_cli_invocation.is_successful()
     assert dbt_cli_invocation.process.returncode == 0
     assert dbt_cli_invocation.target_path.joinpath("dbt.log").exists()
+
+
+def test_dbt_cli_executable() -> None:
+    dbt_executable = cast(str, shutil.which("dbt"))
+    dbt = DbtCliResource(project_dir=TEST_PROJECT_DIR, dbt_executable=dbt_executable)
+
+    assert dbt.cli(["run"], manifest=manifest).is_successful()
+
+    dbt = DbtCliResource(project_dir=TEST_PROJECT_DIR, dbt_executable=Path(dbt_executable))  # type: ignore
+
+    assert dbt.cli(["run"], manifest=manifest).is_successful()
+
+    # dbt executable must exist
+    with pytest.raises(ValidationError, match="does not exist"):
+        DbtCliResource(project_dir=TEST_PROJECT_DIR, dbt_executable="nonexistent")
 
 
 @pytest.mark.parametrize("manifest", [None, manifest, manifest_path, os.fspath(manifest_path)])
@@ -73,15 +92,27 @@ def test_dbt_cli_project_dir_path() -> None:
 
 
 def test_dbt_cli_failure() -> None:
-    dbt = DbtCliResource(project_dir=TEST_PROJECT_DIR)
+    dbt = DbtCliResource(project_dir=os.fspath(test_exception_messages_dbt_project_dir))
     dbt_cli_invocation = dbt.cli(["run", "--selector", "nonexistent"])
 
-    with pytest.raises(DagsterDbtCliRuntimeError):
+    with pytest.raises(
+        DagsterDbtCliRuntimeError, match="Could not find selector named nonexistent"
+    ):
         dbt_cli_invocation.wait()
 
     assert not dbt_cli_invocation.is_successful()
     assert dbt_cli_invocation.process.returncode == 2
     assert dbt_cli_invocation.target_path.joinpath("dbt.log").exists()
+
+    dbt = DbtCliResource(
+        project_dir=os.fspath(test_exception_messages_dbt_project_dir),
+        target="error_dev",
+    )
+
+    with pytest.raises(
+        DagsterDbtCliRuntimeError, match="Env var required but not provided: 'DBT_DUCKDB_THREADS'"
+    ):
+        dbt.cli(["parse"]).wait()
 
 
 def test_dbt_cli_subprocess_cleanup(caplog: pytest.LogCaptureFixture) -> None:

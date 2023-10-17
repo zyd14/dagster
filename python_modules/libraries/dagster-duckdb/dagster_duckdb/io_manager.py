@@ -1,12 +1,10 @@
 from abc import abstractmethod
 from contextlib import contextmanager
-from typing import Optional, Sequence, Type, cast
+from typing import Any, Dict, Optional, Sequence, Type, cast
 
 import duckdb
 from dagster import IOManagerDefinition, OutputContext, io_manager
-from dagster._config.pythonic_config import (
-    ConfigurableIOManagerFactory,
-)
+from dagster._config.pythonic_config import ConfigurableIOManagerFactory
 from dagster._core.definitions.time_window_partitions import TimeWindow
 from dagster._core.storage.db_io_manager import (
     DbClient,
@@ -156,9 +154,27 @@ class DuckDBIOManager(ConfigurableIOManagerFactory):
             # my_table will just contain the data from column "a"
             ...
 
+    Set DuckDB configuration options using the connection_config field. See
+    https://duckdb.org/docs/sql/configuration.html for all available settings.
+
+    .. code-block:: python
+
+        defs = Definitions(
+            assets=[my_table],
+            resources={"io_manager": MyDuckDBIOManager(database="my_db.duckdb",
+                                                       connection_config={"arrow_large_buffer_size": True})}
+        )
+
     """
 
     database: str = Field(description="Path to the DuckDB database.")
+    connection_config: Dict[str, Any] = Field(
+        description=(
+            "DuckDB connection configuration options. See"
+            " https://duckdb.org/docs/sql/configuration.html"
+        ),
+        default={},
+    )
     schema_: Optional[str] = Field(
         default=None, alias="schema", description="Name of the schema to use."
     )  # schema is a reserved word for pydantic
@@ -211,7 +227,11 @@ class DuckDbClient(DbClient):
         conn = backoff(
             fn=duckdb.connect,
             retry_on=(RuntimeError, duckdb.IOException),
-            kwargs={"database": context.resource_config["database"], "read_only": False},
+            kwargs={
+                "database": context.resource_config["database"],
+                "read_only": False,
+                "config": context.resource_config["connection_config"],
+            },
             max_retries=10,
         )
 
