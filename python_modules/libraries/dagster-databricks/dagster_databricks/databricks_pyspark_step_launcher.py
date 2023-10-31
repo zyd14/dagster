@@ -6,9 +6,10 @@ import sys
 import tempfile
 import time
 import zlib
-from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, cast
+from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, cast, List
 
 from dagster import (
+    Array,
     Bool,
     Field,
     IntSource,
@@ -113,6 +114,7 @@ DAGSTER_SYSTEM_ENV_VARS = {
                 " user code."
             ),
         ),
+        "exclude_files_from_package_zip": Field(Array(str), is_required=False, description="Files to exclude from the zip file created for the python package being remotely executed on Databricks"),
         "staging_prefix": Field(
             StringSource,
             is_required=False,
@@ -206,6 +208,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         poll_interval_sec: int = 5,
         local_pipeline_package_path: Optional[str] = None,
         local_dagster_job_package_path: Optional[str] = None,
+        exclude_files_from_package_zip: Optional[List[str]] = None,
         verbose_logs: bool = True,
         add_dagster_env_variables: bool = True,
     ):
@@ -248,6 +251,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
             local_pipeline_package_path or local_dagster_job_package_path,
             "local_dagster_job_package_path",
         )
+        self.exclude_files_from_package_zip = check.opt_list_param(exclude_files_from_package_zip, "exclude_files_from_package_zip", str, "values must be strings")
         self.staging_prefix = check.str_param(staging_prefix, "staging_prefix")
         check.invariant(staging_prefix.startswith("/"), "staging_prefix must be an absolute path")
         self.wait_for_logs = check.bool_param(wait_for_logs, "wait_for_logs")
@@ -492,7 +496,7 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         with tempfile.TemporaryDirectory() as temp_dir:
             # Zip and upload package containing dagster job
             zip_local_path = os.path.join(temp_dir, CODE_ZIP_NAME)
-            build_pyspark_zip(zip_local_path, self.local_dagster_job_package_path)
+            build_pyspark_zip(zip_local_path, self.local_dagster_job_package_path, exclude=self.exclude_files_from_package_zip)
             with open(zip_local_path, "rb") as infile:
                 self.databricks_runner.client.put_file(
                     infile, self._dbfs_path(run_id, step_key, CODE_ZIP_NAME), overwrite=True
