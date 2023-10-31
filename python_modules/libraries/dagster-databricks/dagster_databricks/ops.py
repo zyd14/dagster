@@ -106,8 +106,12 @@ def create_databricks_run_now_op(
         tags={"kind": "databricks"},
         name=name,
     )
-    def _databricks_run_now_op(context: OpExecutionContext, config: DatabricksRunNowOpConfig):
-        databricks: DatabricksClient = getattr(context.resources, databricks_resource_key)
+    def _databricks_run_now_op(
+        context: OpExecutionContext, config: DatabricksRunNowOpConfig
+    ):
+        databricks: DatabricksClient = getattr(
+            context.resources, databricks_resource_key
+        )
         jobs_service = databricks.workspace_client.jobs
 
         run = jobs_service.run_now(
@@ -221,7 +225,9 @@ def create_databricks_submit_run_op(
     def _databricks_submit_run_op(
         context: OpExecutionContext, config: DatabricksSubmitRunOpConfig
     ) -> None:
-        databricks: DatabricksClient = getattr(context.resources, databricks_resource_key)
+        databricks: DatabricksClient = getattr(
+            context.resources, databricks_resource_key
+        )
         jobs_service = databricks.workspace_client.jobs
 
         run = jobs_service.submit(

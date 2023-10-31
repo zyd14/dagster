@@ -70,7 +70,9 @@ BASE_DATABRICKS_PYSPARK_STEP_LAUNCHER_CONFIG: Dict[str, object] = {
     required_resource_keys={"pyspark_step_launcher", "pyspark"},
 )
 def make_df_op(context):
-    schema = StructType([StructField("name", StringType()), StructField("age", IntegerType())])
+    schema = StructType(
+        [StructField("name", StringType()), StructField("age", IntegerType())]
+    )
     rows = [
         Row(name="John", age=19),
         Row(name="Jennifer", age=29),
@@ -199,7 +201,9 @@ def test_pyspark_databricks(
     with instance_for_test() as instance:
         result = do_nothing_local_job.execute_in_process(instance=instance)
         mock_get_step_events.return_value = [
-            event for event in instance.all_logs(result.run_id) if event.step_key == "do_nothing_op"
+            event
+            for event in instance.all_logs(result.run_id)
+            if event.step_key == "do_nothing_op"
         ]
 
     # Test 1 - successful execution
@@ -286,7 +290,9 @@ def test_do_it_live_databricks_s3():
         run_config={
             "ops": {"blah": {"config": {"foo": "a string", "bar": 123}}},
             "resources": {
-                "pyspark_step_launcher": {"config": BASE_DATABRICKS_PYSPARK_STEP_LAUNCHER_CONFIG},
+                "pyspark_step_launcher": {
+                    "config": BASE_DATABRICKS_PYSPARK_STEP_LAUNCHER_CONFIG
+                },
                 "io_manager": {
                     "config": {
                         "s3_bucket": "elementl-databricks",
@@ -322,7 +328,9 @@ def test_do_it_live_databricks_adls2():
                 "adls2": {
                     "config": {
                         "storage_account": ADLS2_STORAGE_ACCOUNT,
-                        "credential": {"key": os.environ.get("AZURE_STORAGE_ACCOUNT_KEY")},
+                        "credential": {
+                            "key": os.environ.get("AZURE_STORAGE_ACCOUNT_KEY")
+                        },
                     }
                 },
                 "io_manager": {

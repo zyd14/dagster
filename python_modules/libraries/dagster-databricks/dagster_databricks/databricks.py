@@ -69,13 +69,16 @@ class DatabricksClient:
 
     def __setup_user_agent(
         self,
-        client: Union[WorkspaceClient, databricks_api.DatabricksAPI, databricks_cli.sdk.ApiClient],
+        client: Union[
+            WorkspaceClient, databricks_api.DatabricksAPI, databricks_cli.sdk.ApiClient
+        ],
     ) -> None:
         """Overrides the user agent for the Databricks API client."""
         client.default_headers["user-agent"] = f"dagster-databricks/{__version__}"
 
     @deprecated(
-        breaking_version="0.21.0", additional_warn_text="Use `workspace_client` property instead."
+        breaking_version="0.21.0",
+        additional_warn_text="Use `workspace_client` property instead.",
     )
     @public
     @property
@@ -98,7 +101,8 @@ class DatabricksClient:
         self._client = value
 
     @deprecated(
-        breaking_version="0.21.0", additional_warn_text="Use `workspace_client` property instead."
+        breaking_version="0.21.0",
+        additional_warn_text="Use `workspace_client` property instead.",
     )
     @public
     @property
@@ -186,7 +190,7 @@ class DatabricksClient:
         """
         return self._workspace_client
 
-    def read_file(self, dbfs_path: str, block_size: int = 1024**2) -> bytes:
+    def read_file(self, dbfs_path: str, block_size: int = 1024 ** 2) -> bytes:
         """Read a file from DBFS to a **byte string**."""
         if dbfs_path.startswith("dbfs://"):
             dbfs_path = dbfs_path[7:]
@@ -199,13 +203,19 @@ class DatabricksClient:
         data += base64.b64decode(jdoc.data)
         while jdoc.bytes_read == block_size:
             bytes_read += jdoc.bytes_read
-            jdoc = dbfs_service.read(path=dbfs_path, offset=bytes_read, length=block_size)
+            jdoc = dbfs_service.read(
+                path=dbfs_path, offset=bytes_read, length=block_size
+            )
             data += base64.b64decode(jdoc.data)
 
         return data
 
     def put_file(
-        self, file_obj: IO, dbfs_path: str, overwrite: bool = False, block_size: int = 1024**2
+        self,
+        file_obj: IO,
+        dbfs_path: str,
+        overwrite: bool = False,
+        block_size: int = 1024 ** 2,
     ) -> None:
         """Upload an arbitrary large file to DBFS.
 
@@ -320,8 +330,12 @@ class DatabricksJobRunner:
         )
         self.token = check.opt_str_param(token, "token")
         self.oauth_client_id = check.opt_str_param(oauth_client_id, "oauth_client_id")
-        self.oauth_client_secret = check.opt_str_param(oauth_client_secret, "oauth_client_secret")
-        self.poll_interval_sec = check.numeric_param(poll_interval_sec, "poll_interval_sec")
+        self.oauth_client_secret = check.opt_str_param(
+            oauth_client_secret, "oauth_client_secret"
+        )
+        self.poll_interval_sec = check.numeric_param(
+            poll_interval_sec, "poll_interval_sec"
+        )
         self.max_wait_time_sec = check.int_param(max_wait_time_sec, "max_wait_time_sec")
 
         self._client: DatabricksClient = DatabricksClient(
@@ -355,7 +369,9 @@ class DatabricksJobRunner:
                 node_types = nodes["node_types"]
                 new_cluster["node_type_id"] = node_types["node_type_id"]
                 if "driver_node_type_id" in node_types:
-                    new_cluster["driver_node_type_id"] = node_types["driver_node_type_id"]
+                    new_cluster["driver_node_type_id"] = node_types[
+                        "driver_node_type_id"
+                    ]
 
             cluster_size = new_cluster.pop("size")
             if "num_workers" in cluster_size:

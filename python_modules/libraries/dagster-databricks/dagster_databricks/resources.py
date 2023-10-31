@@ -28,7 +28,9 @@ class DatabricksClientResource(ConfigurableResource, IAttachDifferentObjectToOpC
     op or asset.
     """
 
-    host: str = Field(description="Databricks host, e.g. https://uksouth.azuredatabricks.com")
+    host: str = Field(
+        description="Databricks host, e.g. https://uksouth.azuredatabricks.com"
+    )
     token: Optional[str] = Field(default=None, description="Databricks access token")
     oauth_credentials: Optional[OauthCredentials] = Field(
         default=None,

@@ -38,7 +38,9 @@ if "DATABRICKS_TOKEN" not in os.environ:
 DONE = object()
 
 
-def event_writing_loop(events_queue: Queue, put_events_fn: Callable[[List[Any]], None]) -> None:
+def event_writing_loop(
+    events_queue: Queue, put_events_fn: Callable[[List[Any]], None]
+) -> None:
     """Periodically check whether the instance has posted any new events to the queue.  If they have,
     write ALL events (not just the new events) to DBFS.
     """
@@ -73,7 +75,9 @@ def main(
     events_queue = None
     with tempfile.TemporaryDirectory() as tmp, StringIO() as stderr, StringIO() as stdout, redirect_stderr(
         stderr
-    ), redirect_stdout(stdout):
+    ), redirect_stdout(
+        stdout
+    ):
         step_run_dir = os.path.dirname(step_run_ref_filepath)
         stdout_filepath = os.path.join(step_run_dir, "stdout")
         stderr_filepath = os.path.join(step_run_dir, "stderr")
@@ -100,8 +104,10 @@ def main(
             print("Running dagster job")  # noqa: T201
 
             if step_run_ref.known_state is not None:
-                attempt_count = step_run_ref.known_state.get_retry_state().get_attempt_count(
-                    step_run_ref.step_key
+                attempt_count = (
+                    step_run_ref.known_state.get_retry_state().get_attempt_count(
+                        step_run_ref.step_key
+                    )
                 )
             else:
                 attempt_count = 0

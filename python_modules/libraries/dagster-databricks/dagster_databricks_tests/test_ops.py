@@ -213,4 +213,6 @@ def test_databricks_op_name():
         )()
         create_databricks_run_now_op(databricks_job_id=1, name="other_name")()
         create_databricks_submit_run_op(databricks_job_configuration)()
-        create_databricks_submit_run_op(databricks_job_configuration, name="other_name_2")()
+        create_databricks_submit_run_op(
+            databricks_job_configuration, name="other_name_2"
+        )()

@@ -97,7 +97,10 @@ def _define_custom_tags() -> Field:
 
 def _define_dbfs_storage_info() -> Field:
     destination = Field(String, description="DBFS destination, e.g. dbfs:/my/path")
-    return Field(Shape(fields={"destination": destination}), description="DBFS storage information")
+    return Field(
+        Shape(fields={"destination": destination}),
+        description="DBFS storage information",
+    )
 
 
 def _define_s3_storage_info() -> Field:
@@ -235,7 +238,10 @@ def _define_aws_attributes_conf() -> Field:
                 "ebs_volume_type": Field(
                     Enum(
                         "EBSVolumeType",
-                        [EnumValue("GENERAL_PURPOSE_SSD"), EnumValue("THROUGHPUT_OPTIMIZED_HDD")],
+                        [
+                            EnumValue("GENERAL_PURPOSE_SSD"),
+                            EnumValue("THROUGHPUT_OPTIMIZED_HDD"),
+                        ],
                     ),
                     description="The type of EBS volumes that will be launched with this cluster.",
                     is_required=False,
@@ -254,7 +260,9 @@ def _define_aws_attributes_conf() -> Field:
                     is_required=False,
                 ),
                 "ebs_volume_iops": Field(
-                    Int, description="The number of IOPS per EBS gp3 volume.", is_required=False
+                    Int,
+                    description="The number of IOPS per EBS gp3 volume.",
+                    is_required=False,
                 ),
                 "ebs_volume_throughput": Field(
                     Int,
@@ -274,7 +282,9 @@ def _define_aws_attributes_conf() -> Field:
 
 def _define_cluster_log_conf() -> Field:
     return Field(
-        Selector({"dbfs": _define_dbfs_storage_info(), "s3": _define_s3_storage_info()}),
+        Selector(
+            {"dbfs": _define_dbfs_storage_info(), "s3": _define_s3_storage_info()}
+        ),
         description=(
             "Recommended! The configuration for delivering Spark logs to a long-term storage"
             " destination. Only one destination can be specified for one cluster. If the conf is"
@@ -355,7 +365,12 @@ def _define_node_types() -> Field:
     )
 
     return Field(
-        Shape(fields={"node_type_id": node_type_id, "driver_node_type_id": driver_node_type_id})
+        Shape(
+            fields={
+                "node_type_id": node_type_id,
+                "driver_node_type_id": driver_node_type_id,
+            }
+        )
     )
 
 
@@ -370,7 +385,9 @@ def _define_nodes() -> Field:
     )
 
     return Field(
-        Selector({"node_types": _define_node_types(), "instance_pool_id": instance_pool_id}),
+        Selector(
+            {"node_types": _define_node_types(), "instance_pool_id": instance_pool_id}
+        ),
         description=(
             "The nodes used in the cluster. Either the node types or an instance pool "
             "can be specified."
@@ -546,7 +563,9 @@ def _define_maven_library() -> Field:
         is_required=False,
     )
     return Field(
-        Shape(fields={"coordinates": coordinates, "repo": repo, "exclusions": exclusions}),
+        Shape(
+            fields={"coordinates": coordinates, "repo": repo, "exclusions": exclusions}
+        ),
         description="Specification of a Maven library to be installed.",
     )
 
@@ -690,7 +709,11 @@ def _define_notebook_task() -> Field:
         ),
         is_required=False,
     )
-    return Field(Shape(fields={"notebook_path": notebook_path, "base_parameters": base_parameters}))
+    return Field(
+        Shape(
+            fields={"notebook_path": notebook_path, "base_parameters": base_parameters}
+        )
+    )
 
 
 def _define_spark_jar_task() -> Field:
@@ -710,7 +733,9 @@ def _define_spark_jar_task() -> Field:
         is_required=False,
         default_value=[],
     )
-    return Field(Shape(fields={"main_class_name": main_class_name, "parameters": parameters}))
+    return Field(
+        Shape(fields={"main_class_name": main_class_name, "parameters": parameters})
+    )
 
 
 def _define_spark_python_task() -> Field:
@@ -868,8 +893,12 @@ def define_databricks_secrets_config() -> Field:
         description="The environment variable name, e.g. `DATABRICKS_TOKEN`.",
         is_required=True,
     )
-    key = Field(String, description="The key of the Databricks secret.", is_required=True)
-    scope = Field(String, description="The scope of the Databricks secret.", is_required=True)
+    key = Field(
+        String, description="The key of the Databricks secret.", is_required=True
+    )
+    scope = Field(
+        String, description="The scope of the Databricks secret.", is_required=True
+    )
     return Field(
         [Shape(fields={"name": name, "key": key, "scope": scope})],
         description=(
@@ -912,7 +941,12 @@ def _define_databricks_job_permission() -> Field:
 
 
 def _define_databricks_cluster_permission() -> Field:
-    cluster_permission_levels = ["NO_PERMISSIONS", "CAN_ATTACH_TO", "CAN_RESTART", "CAN_MANAGE"]
+    cluster_permission_levels = [
+        "NO_PERMISSIONS",
+        "CAN_ATTACH_TO",
+        "CAN_RESTART",
+        "CAN_MANAGE",
+    ]
     return Field(
         {
             permission_level: Field(Array(_define_accessor()), is_required=False)
@@ -940,7 +974,9 @@ def define_oauth_credentials():
         Noneable(
             Shape(
                 fields={
-                    "client_id": Field(str, is_required=True, description="Oauth client ID"),
+                    "client_id": Field(
+                        str, is_required=True, description="Oauth client ID"
+                    ),
                     "client_secret": Field(
                         str, is_required=True, description="Oauth client secret"
                     ),

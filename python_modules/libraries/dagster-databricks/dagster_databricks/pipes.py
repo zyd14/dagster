@@ -67,11 +67,14 @@ class _PipesDatabricksClient(PipesClient):
     ):
         self.client = client
         self.env = env
-        self.context_injector = check.opt_inst_param(
-            context_injector,
-            "context_injector",
-            PipesContextInjector,
-        ) or PipesDbfsContextInjector(client=self.client)
+        self.context_injector = (
+            check.opt_inst_param(
+                context_injector,
+                "context_injector",
+                PipesContextInjector,
+            )
+            or PipesDbfsContextInjector(client=self.client)
+        )
         self.message_reader = check.opt_inst_param(
             message_reader,
             "message_reader",
@@ -82,15 +85,26 @@ class _PipesDatabricksClient(PipesClient):
     def _is_dagster_maintained(cls) -> bool:
         return True
 
-    def get_default_message_reader(self, task: jobs.SubmitTask) -> "PipesDbfsMessageReader":
+    def get_default_message_reader(
+        self, task: jobs.SubmitTask
+    ) -> "PipesDbfsMessageReader":
         # include log readers if the user is writing their logs to DBFS
-        if task.as_dict().get("new_cluster", {}).get("cluster_log_conf", {}).get("dbfs", None):
+        if (
+            task.as_dict()
+            .get("new_cluster", {})
+            .get("cluster_log_conf", {})
+            .get("dbfs", None)
+        ):
             log_readers = [
                 PipesDbfsLogReader(
-                    client=self.client, remote_log_name="stdout", target_stream=sys.stdout
+                    client=self.client,
+                    remote_log_name="stdout",
+                    target_stream=sys.stdout,
                 ),
                 PipesDbfsLogReader(
-                    client=self.client, remote_log_name="stderr", target_stream=sys.stderr
+                    client=self.client,
+                    remote_log_name="stderr",
+                    target_stream=sys.stderr,
                 ),
             ]
         else:
@@ -161,7 +175,9 @@ class _PipesDatabricksClient(PipesClient):
                         raise DagsterPipesExecutionError(
                             f"Error running Databricks job: {run.state.state_message}"
                         )
-                elif run.state.life_cycle_state == jobs.RunLifeCycleState.INTERNAL_ERROR:
+                elif (
+                    run.state.life_cycle_state == jobs.RunLifeCycleState.INTERNAL_ERROR
+                ):
                     raise DagsterPipesExecutionError(
                         f"Error running Databricks job: {run.state.state_message}"
                     )
@@ -211,7 +227,9 @@ class PipesDbfsContextInjector(PipesContextInjector):
         """
         with dbfs_tempdir(self.dbfs_client) as tempdir:
             path = os.path.join(tempdir, _CONTEXT_FILENAME)
-            contents = base64.b64encode(json.dumps(context).encode("utf-8")).decode("utf-8")
+            contents = base64.b64encode(json.dumps(context).encode("utf-8")).decode(
+                "utf-8"
+            )
             self.dbfs_client.put(path, contents=contents, overwrite=True)
             yield {"path": path}
 

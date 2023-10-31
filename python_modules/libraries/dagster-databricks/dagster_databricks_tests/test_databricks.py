@@ -5,7 +5,11 @@ import dagster_databricks
 import dagster_pyspark
 import pytest
 from dagster import build_op_context
-from dagster_databricks.databricks import DatabricksClient, DatabricksError, DatabricksJobRunner
+from dagster_databricks.databricks import (
+    DatabricksClient,
+    DatabricksError,
+    DatabricksJobRunner,
+)
 from dagster_databricks.types import (
     DatabricksRunLifeCycleState,
     DatabricksRunResultState,
@@ -29,7 +33,9 @@ def test_databricks_submit_job_existing_cluster(mock_submit_run, databricks_run_
     expected_task.existing_cluster_id = databricks_run_config["cluster"]["existing"]
     expected_task.task_key = "dagster-task"
     expected_task.libraries = [
-        compute.Library(pypi=compute.PythonPyPiLibrary(package=f"dagster=={dagster.__version__}")),
+        compute.Library(
+            pypi=compute.PythonPyPiLibrary(package=f"dagster=={dagster.__version__}")
+        ),
         compute.Library(
             pypi=compute.PythonPyPiLibrary(
                 package=f"dagster-databricks=={dagster_databricks.__version__}"
@@ -83,7 +89,9 @@ def test_databricks_submit_job_new_cluster(mock_submit_run, databricks_run_confi
         custom_tags={"__dagster_version": dagster.__version__},
     )
     expected_task.libraries = [
-        compute.Library(pypi=compute.PythonPyPiLibrary(package=f"dagster=={dagster.__version__}")),
+        compute.Library(
+            pypi=compute.PythonPyPiLibrary(package=f"dagster=={dagster.__version__}")
+        ),
         compute.Library(
             pypi=compute.PythonPyPiLibrary(
                 package=f"dagster-databricks=={dagster_databricks.__version__}"
@@ -197,9 +205,15 @@ def test_dagster_databricks_user_agent() -> None:
     databricks_client = DatabricksClient(host=HOST, token=TOKEN)
 
     # TODO: Remove this once databricks_cli is removed
-    assert "dagster-databricks" in databricks_client.api_client.default_headers["user-agent"]
+    assert (
+        "dagster-databricks"
+        in databricks_client.api_client.default_headers["user-agent"]
+    )
 
     # TODO: Remove this once databricks_api is removed
-    assert "dagster-databricks" in databricks_client.client.client.default_headers["user-agent"]
+    assert (
+        "dagster-databricks"
+        in databricks_client.client.client.default_headers["user-agent"]
+    )
 
     assert "dagster-databricks" in databricks_client.workspace_client.config.user_agent

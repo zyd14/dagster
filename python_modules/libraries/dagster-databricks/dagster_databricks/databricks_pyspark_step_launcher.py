@@ -114,7 +114,11 @@ DAGSTER_SYSTEM_ENV_VARS = {
                 " user code."
             ),
         ),
-        "exclude_files_from_package_zip": Field(Array(str), is_required=False, description="Files to exclude from the zip file created for the python package being remotely executed on Databricks"),
+        "exclude_files_from_package_zip": Field(
+            Array(str),
+            is_required=False,
+            description="Files to exclude from the zip file created for the python package being remotely executed on Databricks",
+        ),
         "staging_prefix": Field(
             StringSource,
             is_required=False,
@@ -224,7 +228,9 @@ class DatabricksPySparkStepLauncher(StepLauncher):
             databricks_token is None or oauth_credentials is None,
             "Must provide either databricks_token or oauth_credentials, but cannot provide both",
         )
-        self.databricks_token = check.opt_str_param(databricks_token, "databricks_token")
+        self.databricks_token = check.opt_str_param(
+            databricks_token, "databricks_token"
+        )
         oauth_credentials = check.opt_mapping_param(
             oauth_credentials,
             "oauth_credentials",
@@ -238,12 +244,14 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         self.env_variables = check.opt_mapping_param(env_variables, "env_variables")
         self.storage = check.opt_mapping_param(storage, "storage")
         check.invariant(
-            local_dagster_job_package_path is not None or local_pipeline_package_path is not None,
+            local_dagster_job_package_path is not None
+            or local_pipeline_package_path is not None,
             "Missing config: need to provide either 'local_dagster_job_package_path' or"
             " 'local_pipeline_package_path' config entry",
         )
         check.invariant(
-            local_dagster_job_package_path is None or local_pipeline_package_path is None,
+            local_dagster_job_package_path is None
+            or local_pipeline_package_path is None,
             "Error in config: Provided both 'local_dagster_job_package_path' and"
             " 'local_pipeline_package_path' entries. Need to specify one or the other.",
         )
@@ -251,9 +259,16 @@ class DatabricksPySparkStepLauncher(StepLauncher):
             local_pipeline_package_path or local_dagster_job_package_path,
             "local_dagster_job_package_path",
         )
-        self.exclude_files_from_package_zip = check.opt_list_param(exclude_files_from_package_zip, "exclude_files_from_package_zip", str, "values must be strings")
+        self.exclude_files_from_package_zip = check.opt_list_param(
+            exclude_files_from_package_zip,
+            "exclude_files_from_package_zip",
+            str,
+            "values must be strings",
+        )
         self.staging_prefix = check.str_param(staging_prefix, "staging_prefix")
-        check.invariant(staging_prefix.startswith("/"), "staging_prefix must be an absolute path")
+        check.invariant(
+            staging_prefix.startswith("/"), "staging_prefix must be an absolute path"
+        )
         self.wait_for_logs = check.bool_param(wait_for_logs, "wait_for_logs")
 
         self.databricks_runner = DatabricksJobRunner(
@@ -289,10 +304,14 @@ class DatabricksPySparkStepLauncher(StepLauncher):
             # If this is being called within a `capture_interrupts` context, allow interrupts while
             # waiting for the  execution to complete, so that we can terminate slow or hanging steps
             with raise_execution_interrupts():
-                yield from self.step_events_iterator(step_context, step_key, databricks_run_id)
+                yield from self.step_events_iterator(
+                    step_context, step_key, databricks_run_id
+                )
         except:
             # if executon is interrupted before the step is completed, cancel the run
-            self.databricks_runner.client.workspace_client.jobs.cancel_run(databricks_run_id)
+            self.databricks_runner.client.workspace_client.jobs.cancel_run(
+                databricks_run_id
+            )
             raise
         finally:
             self.log_compute_logs(log, run_id, step_key)
@@ -300,7 +319,9 @@ class DatabricksPySparkStepLauncher(StepLauncher):
             if self.wait_for_logs:
                 self._log_logs_from_cluster(log, databricks_run_id)
 
-    def log_compute_logs(self, log: DagsterLogManager, run_id: str, step_key: str) -> None:
+    def log_compute_logs(
+        self, log: DagsterLogManager, run_id: str, step_key: str
+    ) -> None:
         try:
             stdout = self.databricks_runner.client.read_file(
                 self._dbfs_path(run_id, step_key, "stdout")
@@ -342,12 +363,15 @@ class DatabricksPySparkStepLauncher(StepLauncher):
         processed_events = 0
         start_poll_time = time.time()
         done = False
-        step_context.log.info("Waiting for Databricks run %s to complete..." % databricks_run_id)
+        step_context.log.info(
+            "Waiting for Databricks run %s to complete..." % databricks_run_id
+        )
         while not done:
             with raise_execution_interrupts():
                 if self.verbose_logs:
                     step_context.log.debug(
-                        "Waiting %.1f seconds...", self.databricks_runner.poll_interval_sec
+                        "Waiting %.1f seconds...",
+                        self.databricks_runner.poll_interval_sec,
                     )
                 time.sleep(self.databricks_runner.poll_interval_sec)
                 try:
@@ -360,7 +384,9 @@ class DatabricksPySparkStepLauncher(StepLauncher):
                     )
                 finally:
                     all_events = self.get_step_events(
-                        step_context.run_id, step_key, step_context.previous_attempt_count
+                        step_context.run_id,
+                        step_key,
+                        step_context.previous_attempt_count,
                     )
                     # we get all available records on each poll, but we only want to process the
                     # ones we haven't seen before
@@ -376,7 +402,9 @@ class DatabricksPySparkStepLauncher(StepLauncher):
     def get_step_events(
         self, run_id: str, step_key: str, retry_number: int
     ) -> Sequence[EventLogEntry]:
-        path = self._dbfs_path(run_id, step_key, f"{retry_number}_{PICKLED_EVENTS_FILE_NAME}")
+        path = self._dbfs_path(
+            run_id, step_key, f"{retry_number}_{PICKLED_EVENTS_FILE_NAME}"
+        )
 
         def _get_step_records() -> Sequence[EventLogEntry]:
             serialized_records = self.databricks_runner.client.read_file(path)
@@ -429,10 +457,16 @@ class DatabricksPySparkStepLauncher(StepLauncher):
 
         # Update job permissions
         if "job_permissions" in self.permissions:
-            job_permissions = self._format_permissions(self.permissions["job_permissions"])
+            job_permissions = self._format_permissions(
+                self.permissions["job_permissions"]
+            )
             job_id = run_info.job_id  # type: ignore  # (??)
-            log.debug(f"Updating job permissions with following json: {job_permissions}")
-            client.permissions.update("jobs", job_id, access_control_list=job_permissions)
+            log.debug(
+                f"Updating job permissions with following json: {job_permissions}"
+            )
+            client.permissions.update(
+                "jobs", job_id, access_control_list=job_permissions
+            )
             log.info("Successfully updated cluster permissions")
 
         # Update cluster permissions
@@ -442,8 +476,12 @@ class DatabricksPySparkStepLauncher(StepLauncher):
                     "Attempting to update permissions of an existing cluster. "
                     "This is dangerous and thus unsupported."
                 )
-            cluster_permissions = self._format_permissions(self.permissions["cluster_permissions"])
-            log.debug(f"Updating cluster permissions with following json: {cluster_permissions}")
+            cluster_permissions = self._format_permissions(
+                self.permissions["cluster_permissions"]
+            )
+            log.debug(
+                f"Updating cluster permissions with following json: {cluster_permissions}"
+            )
             client.permissions.update(
                 "clusters", cluster_id, access_control_list=cluster_permissions
             )
@@ -479,27 +517,41 @@ class DatabricksPySparkStepLauncher(StepLauncher):
             self._internal_dbfs_path(run_id, step_key, PICKLED_CONFIG_FILE_NAME),
             self._internal_dbfs_path(run_id, step_key, CODE_ZIP_NAME),
         ]
-        return {"spark_python_task": {"python_file": python_file, "parameters": parameters}}
+        return {
+            "spark_python_task": {"python_file": python_file, "parameters": parameters}
+        }
 
     def _upload_artifacts(
-        self, log: DagsterLogManager, step_run_ref: StepRunRef, run_id: str, step_key: str
+        self,
+        log: DagsterLogManager,
+        step_run_ref: StepRunRef,
+        run_id: str,
+        step_key: str,
     ) -> None:
         """Upload the step run ref and pyspark code to DBFS to run as a job."""
         log.info("Uploading main file to DBFS")
         main_local_path = self._main_file_local_path()
         with open(main_local_path, "rb") as infile:
             self.databricks_runner.client.put_file(
-                infile, self._dbfs_path(run_id, step_key, self._main_file_name()), overwrite=True
+                infile,
+                self._dbfs_path(run_id, step_key, self._main_file_name()),
+                overwrite=True,
             )
 
         log.info("Uploading dagster job to DBFS")
         with tempfile.TemporaryDirectory() as temp_dir:
             # Zip and upload package containing dagster job
             zip_local_path = os.path.join(temp_dir, CODE_ZIP_NAME)
-            build_pyspark_zip(zip_local_path, self.local_dagster_job_package_path, exclude=self.exclude_files_from_package_zip)
+            build_pyspark_zip(
+                zip_local_path,
+                self.local_dagster_job_package_path,
+                exclude=self.exclude_files_from_package_zip,
+            )
             with open(zip_local_path, "rb") as infile:
                 self.databricks_runner.client.put_file(
-                    infile, self._dbfs_path(run_id, step_key, CODE_ZIP_NAME), overwrite=True
+                    infile,
+                    self._dbfs_path(run_id, step_key, CODE_ZIP_NAME),
+                    overwrite=True,
                 )
 
         log.info("Uploading step run ref file to DBFS")
@@ -633,7 +685,9 @@ class DatabricksConfig:
         elif "adls2" in self.storage:
             self.setup_adls2_storage(self.storage["adls2"], dbutils, sc)
 
-    def setup_s3_storage(self, s3_storage: Mapping[str, Any], dbutils: Any, sc: Any) -> None:
+    def setup_s3_storage(
+        self, s3_storage: Mapping[str, Any], dbutils: Any, sc: Any
+    ) -> None:
         """Obtain AWS credentials from Databricks secrets and export so both Spark and boto can use them."""
         scope = s3_storage["secret_scope"]
 
@@ -642,17 +696,24 @@ class DatabricksConfig:
 
         # Spark APIs will use this.
         # See https://docs.databricks.com/data/data-sources/aws/amazon-s3.html#alternative-1-set-aws-keys-in-the-spark-context.
-        sc._jsc.hadoopConfiguration().set("fs.s3n.awsAccessKeyId", access_key)  # noqa: SLF001
-        sc._jsc.hadoopConfiguration().set("fs.s3n.awsSecretAccessKey", secret_key)  # noqa: SLF001
+        sc._jsc.hadoopConfiguration().set(
+            "fs.s3n.awsAccessKeyId", access_key
+        )  # noqa: SLF001
+        sc._jsc.hadoopConfiguration().set(
+            "fs.s3n.awsSecretAccessKey", secret_key
+        )  # noqa: SLF001
 
         # Boto will use these.
         os.environ["AWS_ACCESS_KEY_ID"] = access_key
         os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
 
-    def setup_adls2_storage(self, adls2_storage: Mapping[str, Any], dbutils: Any, sc: Any) -> None:
+    def setup_adls2_storage(
+        self, adls2_storage: Mapping[str, Any], dbutils: Any, sc: Any
+    ) -> None:
         """Obtain an Azure Storage Account key from Databricks secrets and export so Spark can use it."""
         storage_account_key = dbutils.secrets.get(
-            scope=adls2_storage["secret_scope"], key=adls2_storage["storage_account_key_key"]
+            scope=adls2_storage["secret_scope"],
+            key=adls2_storage["storage_account_key_key"],
         )
         # Spark APIs will use this.
         # See https://docs.microsoft.com/en-gb/azure/databricks/data/data-sources/azure/azure-datalake-gen2#--access-directly-using-the-storage-account-access-key
@@ -679,6 +740,8 @@ class DatabricksConfig:
             name = secret["name"]
             key = secret["key"]
             scope = secret["scope"]
-            print(f"Exporting {name} from Databricks secret {key}, scope {scope}")  # noqa: T201
+            print(
+                f"Exporting {name} from Databricks secret {key}, scope {scope}"
+            )  # noqa: T201
             val = dbutils.secrets.get(scope=scope, key=key)
             os.environ[name] = val

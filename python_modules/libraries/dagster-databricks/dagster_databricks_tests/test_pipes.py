@@ -94,7 +94,13 @@ def upload_dagster_pipes_whl(client: WorkspaceClient) -> Iterator[None]:
     os.chdir(dagster_pipes_root)
     subprocess.check_call(["python", "setup.py", "bdist_wheel"])
     subprocess.check_call(
-        ["dbfs", "cp", "--overwrite", f"dist/{DAGSTER_PIPES_WHL_FILENAME}", DAGSTER_PIPES_WHL_PATH]
+        [
+            "dbfs",
+            "cp",
+            "--overwrite",
+            f"dist/{DAGSTER_PIPES_WHL_FILENAME}",
+            DAGSTER_PIPES_WHL_PATH,
+        ]
     )
     os.chdir(orig_wd)
     yield
@@ -164,7 +170,9 @@ def test_nonexistent_entry_point(client: WorkspaceClient):
         task = _make_submit_task("/fake/fake", forward_logs=False)
         return pipes_client.run(task=task, context=context).get_results()
 
-    with pytest.raises(DagsterPipesExecutionError, match=r"Cannot read the python file"):
+    with pytest.raises(
+        DagsterPipesExecutionError, match=r"Cannot read the python file"
+    ):
         materialize(
             [fake],
             resources={"pipes_client": PipesDatabricksClient(client)},
