@@ -11,7 +11,7 @@ from typing import Iterator, Literal, Mapping, Optional, Sequence, TextIO
 import dagster._check as check
 from dagster._annotations import experimental
 from dagster._core.definitions.resource_annotation import ResourceParam
-from dagster._core.errors import DagsterPipesExecutionError
+from dagster._core.errors import DagsterPipesExecutionError, DagsterExecutionInterruptedError
 from dagster._core.execution.context.compute import OpExecutionContext
 from dagster._core.pipes.client import (
     PipesClient,
@@ -141,31 +141,37 @@ class _PipesDatabricksClient(PipesClient):
             }
 
             task = jobs.SubmitTask.from_dict(submit_task_dict)
-            run_id = self.client.jobs.submit(
-                tasks=[task],
-                **(submit_args or {}),
-            ).bind()["run_id"]
 
-            while True:
-                run = self.client.jobs.get_run(run_id)
-                context.log.info(
-                    f"Databricks run {run_id} current state: {run.state.life_cycle_state}"
-                )
-                if run.state.life_cycle_state in (
-                    jobs.RunLifeCycleState.TERMINATED,
-                    jobs.RunLifeCycleState.SKIPPED,
-                ):
-                    if run.state.result_state == jobs.RunResultState.SUCCESS:
-                        break
-                    else:
+            try:
+                run_id = self.client.jobs.submit(
+                    tasks=[task],
+                    **(submit_args or {}),
+                ).bind()["run_id"]
+
+                while True:
+                    run = self.client.jobs.get_run(run_id)
+                    context.log.info(
+                        f"Databricks run {run_id} current state: {run.state.life_cycle_state}"
+                    )
+                    if run.state.life_cycle_state in (
+                        jobs.RunLifeCycleState.TERMINATED,
+                        jobs.RunLifeCycleState.SKIPPED,
+                    ):
+                        if run.state.result_state == jobs.RunResultState.SUCCESS:
+                            break
+                        else:
+                            raise DagsterPipesExecutionError(
+                                f"Error running Databricks job: {run.state.state_message}"
+                            )
+                    elif run.state.life_cycle_state == jobs.RunLifeCycleState.INTERNAL_ERROR:
                         raise DagsterPipesExecutionError(
                             f"Error running Databricks job: {run.state.state_message}"
                         )
-                elif run.state.life_cycle_state == jobs.RunLifeCycleState.INTERNAL_ERROR:
-                    raise DagsterPipesExecutionError(
-                        f"Error running Databricks job: {run.state.state_message}"
-                    )
-                time.sleep(_RUN_POLL_INTERVAL)
+                    time.sleep(_RUN_POLL_INTERVAL)
+            except DagsterExecutionInterruptedError:
+                self.client.jobs.cancel_run(run_id)
+                raise
+
         return PipesClientCompletedInvocation(pipes_session)
 
 
