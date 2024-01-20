@@ -24,6 +24,7 @@ from dagster import (
     Shape,
     String,
 )
+from databricks.sdk.service.compute import AzureAvailability
 
 
 def _define_autoscale() -> Field:
@@ -393,6 +394,55 @@ def _define_nodes() -> Field:
     )
 
 
+def _define_azure_log_analytics_info() -> Field:
+    log_analytics_primary_key = Field(str)
+    log_analytics_workspace_id = Field(str)
+    return Field(
+        Shape(
+            {
+                "log_analytics_primary_key": log_analytics_primary_key,
+                "log_analytics_workspace_id": log_analytics_workspace_id,
+            }
+        )
+    )
+
+
+def _define_azure_attributes_conf() -> Field:
+    availability = Field(
+        Enum(
+            "AzureAvailability",
+            [
+                EnumValue(AzureAvailability.SPOT_AZURE.value),
+                EnumValue(AzureAvailability.ON_DEMAND_AZURE.value),
+                EnumValue(AzureAvailability.SPOT_WITH_FALLBACK_AZURE.value),
+            ],
+        ),
+        description="Availability type used for all subsequent nodes past the first_on_demand ones. Note: If first_on_demand is zero, this availability type will be used for the entire cluster.",
+        is_required=True,
+    )
+    first_on_demand = Field(
+        int,
+        description="The first first_on_demand nodes of the cluster will be placed on on-demand instances. If this value is greater than 0, the cluster driver node will be placed on an on-demand instance. If this value is greater than or equal to the current cluster size, all nodes will be placed on on-demand instances. If this value is less than the current cluster size, first_on_demand nodes will be placed on on-demand instances and the remainder will be placed on availability instances. This value does not affect cluster size and cannot be mutated over the lifetime of a cluster.",
+        is_required=False,
+    )
+    log_analytics_info = _define_azure_log_analytics_info()
+    spot_bid_max_price = Field(
+        float,
+        description="The max bid price to be used for Azure spot instances. The Max price for the bid cannot be higher than the on-demand price of the instance. If not specified, the default value is -1, which specifies that the instance cannot be evicted on the basis of price, and only on the basis of availability. Further, the value should > 0 or -1.",
+        is_required=False,
+    )
+    return Field(
+        Shape(
+            {
+                "availability": availability,
+                "first_on_demand": first_on_demand,
+                "log_analytics_info": log_analytics_info,
+                "spot_bid_max_price": spot_bid_max_price,
+            }
+        )
+    )
+
+
 def _define_new_cluster() -> Field:
     spark_version = Field(
         String,
@@ -497,6 +547,7 @@ def _define_new_cluster() -> Field:
                 "enable_local_disk_encryption": enable_local_disk_encryption,
                 "runtime_engine": runtime_engine,
                 "policy_id": policy_id,
+                "azure_attributes": _define_azure_attributes_conf(),
             }
         )
     )
