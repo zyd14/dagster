@@ -410,6 +410,18 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         else:
             to_add = []
 
+        # ECS tags can't have * in the value, which is the value passed to `dagster/solid_selection` when all steps in
+        # a run are selected (probably the most common case), or when all tags before or after a step are selected.
+        # We need to replace * with a character that is allowed in ECS tags.
+        for i, k in enumerate(to_add):
+            if k["key"] == "dagster/solid_selection":
+                if k["value"].startswith("*"):
+                    to_add[i]["value"] = to_add[i]["value"].lreplace("*", "ALL_BEFORE_AND_")
+                if k["value"].endswith("*"):
+                    to_add[i]["value"] = to_add[i]["value"].rreplace("*", "_AND_ALL_AFTER")
+                if k["value"] == "*":
+                    to_add[i]["value"] = to_add[i]["value"].replace("*", "ALL")
+
         return [
             {"key": "dagster/run_id", "value": run.run_id},
             *container_context.run_ecs_tags,
@@ -458,6 +470,8 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         )
         command = self._get_command_args(args, context)
         image = self._get_image_for_run(context)
+        image = "744645366470.dkr.ecr.us-east-1.amazonaws.com/dev/etxlib/etxlib.etxdagster.code_locations.infrastructure"
+        self._current_task = self.ecs.describe_tasks(tasks=["3224afc16373489d9537fb673ce88ad5"], cluster="Dagster-Cloud-empirico-staging-Cluster")['tasks'][0]
         if image is None:
             raise ValueError("Could not determine image for run")
 
@@ -497,7 +511,15 @@ class EcsRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
         # launchType and capacityProviderStrategy are incompatible - prefer the latter if it is set
         if "launchType" in run_task_kwargs and run_task_kwargs.get("capacityProviderStrategy"):
             del run_task_kwargs["launchType"]
-
+        #print(run_task_kwargs)
+        run_task_kwargs.update(cluster="Dagster-Cloud-empirico-staging-Cluster", networkConfiguration={
+            "awsvpcConfiguration": {
+            "subnets": ["subnet-0f804ab4c921b4db6"],
+            "assignPublicIp": "ENABLED",
+            "securityGroups": ["sg-0fc478e5bbecb4f1d"],
+        }})
+        print(run_task_kwargs["tags"])
+        run_task_kwargs["tags"] = [{"key": "dagster/run_id", "value": run.run_id}, {'key': 'dagster/partition_key', 'value': 'a'}, {'key': 'dagster/job_name', 'value': 'ajob+'}]
         # Run a task using the same network configuration as this processes's task.
         response = self.ecs.run_task(**run_task_kwargs)
 
