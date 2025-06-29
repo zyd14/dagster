@@ -191,7 +191,7 @@ def databricks_pyspark_step_launcher(
     .. _`here for S3`: https://docs.databricks.com/data/data-sources/aws/amazon-s3.html#alternative-1-set-aws-keys-in-the-spark-context
     .. _`here for ADLS`: https://docs.microsoft.com/en-gb/azure/databricks/data/data-sources/azure/azure-datalake-gen2#--access-directly-using-the-storage-account-access-key
     """
-    return DatabricksPySparkStepLauncher(**context.resource_config)
+    return DatabricksPySparkStepLauncher(**{**{"secrets_to_env_variables":[]}, **context.resource_config})
 
 
 @_step_launcher_supersession
